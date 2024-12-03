@@ -63,7 +63,7 @@ local function Init()
     IsFirstInit = false
 end
 
-if FindFirstOf('SurvivalPlayerCharacter') then
+if FindFirstOf('SurvivalPlayerCharacter'):IsValid() then
     Init()
 end
 
