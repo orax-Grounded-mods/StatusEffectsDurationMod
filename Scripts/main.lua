@@ -1,14 +1,14 @@
-local utils = require("lua-mods-libs.utils")
-local logging = require("lua-mods-libs.logging")
+local string, pairs, print = string, pairs, print
 
-local string, pairs = string, pairs
-
-LOG_LEVEL = "INFO" ---@type _LogLevel
 IsFirstInit = true
 
-dofile(string.format("%s\\%s\\options.lua", utils.mod.modsDirectory, utils.mod.name))
+local info = debug.getinfo(1, "S")
+local modsDirectory = info.source:match("@?(.+\\Mods)\\")
+dofile(string.format("%s\\StatusEffectsDurationMod\\options.lua", modsDirectory))
 
-local log = __LOGGER or logging.new(LOG_LEVEL, "ERROR")
+local function LogNewDuration(duration, filter)
+    print(string.format("Set new duration: %s; filter: %s\n", duration, filter))
+end
 
 local function OnFirstInit()
     local function SetCustomTimeElapsed(statusEffect)
@@ -19,10 +19,14 @@ local function OnFirstInit()
             return
         end
 
-        log.debug(statusEffect.StatusEffectRowHandle.RowName:ToString(), duration)
+        if LOGGING then
+            print(string.format("effect: %s; duration: %s\n",
+                statusEffect.StatusEffectRowHandle.RowName:ToString(), duration))
+        end
 
         for nameKey, customDuration in pairs(FilteredByName) do
             if nameKey == statusEffect.StatusEffectRowHandle.RowName:ToString() then
+                LogNewDuration(customDuration, "FilteredByName")
                 statusEffect.TimeElapsed = -(customDuration - duration)
                 return
             end
@@ -30,23 +34,23 @@ local function OnFirstInit()
 
         for durationKey, customDuration in pairs(FilteredByOriginalDuration) do
             if durationKey == duration then
+                LogNewDuration(customDuration, "FilteredByOriginalDuration")
                 statusEffect.TimeElapsed = -(customDuration - duration)
                 return
             end
         end
+
+        if __ALL__ ~= nil then
+            LogNewDuration(__ALL__, "__ALL__")
+            statusEffect.TimeElapsed = -(__ALL__ - duration)
+        end
     end
 
-    RegisterHook("/Game/UI/StatusEffects/UI_StatusEffectTimer.UI_StatusEffectTimer_C:Initialize",
-        function(self, statusEffectUParam, addedThisFrameUParam)
-            local statusEffect = statusEffectUParam:get()
-            local addedThisFrame = addedThisFrameUParam:get()
+    RegisterHook("/Script/Maine.HealthComponent:OnStatusEffectChanged", function(self, owner, statusEffect)
+        SetCustomTimeElapsed(statusEffect:get())
+    end)
 
-            -- check if the effect has just been added
-            if addedThisFrame then
-                SetCustomTimeElapsed(statusEffect)
-            end
-        end)
-
+    -- This hook will not work in multiplayer mode.
     RegisterHook("/Game/UI/StatusEffects/UI_StatusEffectTimer.UI_StatusEffectTimer_C:OnTimerReset",
         function(self, statusEffectUParam)
             local statusEffect = statusEffectUParam:get()
@@ -61,6 +65,10 @@ local function Init()
     end
 
     IsFirstInit = false
+end
+
+if not LOGGING then
+    LogNewDuration = function(...) end
 end
 
 if FindFirstOf('SurvivalPlayerCharacter'):IsValid() then
