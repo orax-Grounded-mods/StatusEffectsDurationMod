@@ -1,3 +1,17 @@
+---@type EStatusEffectOriginType
+local EStatusEffectOriginType = {
+    Gear = 0,
+    Consumable = 1,
+    Creature = 2,
+    Environment = 3,
+    Perk = 4,
+    Upgrade = 5,
+    Thirst = 6,
+    Hunger = 7,
+    Other = 8,
+    EStatusEffectOriginType_MAX = 9,
+}
+
 local string, pairs, print = string, pairs, print
 
 IsFirstInit = true
@@ -11,8 +25,13 @@ local function LogNewDuration(duration, filter)
 end
 
 local function OnFirstInit()
+    ---@param statusEffect UStatusEffect
     local function SetCustomTimeElapsed(statusEffect)
-        local duration = statusEffect.GetDuration()
+        if statusEffect.OriginType ~= EStatusEffectOriginType.Consumable then
+            return
+        end
+
+        local duration = statusEffect:GetDuration()
 
         -- test if duration is infinite
         if duration == math.huge then
